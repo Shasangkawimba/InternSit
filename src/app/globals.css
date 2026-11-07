@@ -1,26 +1,71 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@keyframes drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-background: #FFFFFF;
+    --color-surface: #F9FAFB;
+    --color-surface-lowest: #FFFFFF;
+    --color-surface-low: #F3F4F6;
+    --color-surface-container: #E5E7EB;
+    --color-surface-high: #D1D5DB;
+    --color-on-surface: #111827;
+    --color-on-surface-variant: #4B5563;
+    --color-on-primary: #FFFFFF;
+    --color-outline: #D1D5DB;
+    --color-outline-variant: 229 231 235;
+    --color-primary: #111827;
+    --color-primary-container: #E5E7EB;
+    --color-primary-fixed: #374151;
+    --color-border: #E5E7EB;
+    --color-success: #16A34A;
+    --color-warning: #D97706;
+    --color-danger: #DC2626;
+    --color-input-bg: #F3F4F6;
+    --color-input-border: #D1D5DB;
+    --color-input-focus-border: #111827;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  .dark {
+    --color-background: #0B0F14;
+    --color-surface: #10151C;
+    --color-surface-lowest: #0E131A;
+    --color-surface-low: #161D26;
+    --color-surface-container: #1B232D;
+    --color-surface-high: #222B36;
+    --color-on-surface: #E2E8F0;
+    --color-on-surface-variant: #B0BEC5;
+    --color-on-primary: #0F172A;
+    --color-outline: #475569;
+    --color-outline-variant: 51 65 85;
+    --color-primary: #E2E8F0;
+    --color-primary-container: #CBD5E1;
+    --color-primary-fixed: #94A3B8;
+    --color-border: #334155;
+    --color-success: #22C55E;
+    --color-warning: #F59E0B;
+    --color-danger: #EF4444;
+    --color-input-bg: #1B232D;
+    --color-input-border: #475569;
+    --color-input-focus-border: #E2E8F0;
+  }
+
+  /* Scrollbar custom untuk modal — tipis, mengikuti tema */
+  .modal-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-outline) var(--color-surface-lowest);
+  }
+  .modal-scrollbar::-webkit-scrollbar { width: 6px; }
+  .modal-scrollbar::-webkit-scrollbar-track { background: var(--color-surface-lowest); }
+  .modal-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--color-outline);
+    border-radius: 999px;
+  }
+  .modal-scrollbar::-webkit-scrollbar-button { display: none; }
 }
