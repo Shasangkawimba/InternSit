@@ -19,7 +19,6 @@ import {
 } from '@/lib/applications';
 import { ApiError, listApplications, updateApplicationStatus } from '@/lib/applications-client';
 import { ApplicationModal } from '@/components/application-modal';
-import { Logo } from '@/components/logo';
 
 // Monochrome on purpose: primary tone only — except REJECTED, which gets red
 // so the archived column stands out as the one "closed" state.
@@ -167,7 +166,7 @@ function BoardSkeleton() {
     <div className="space-y-8" aria-hidden="true">
       <div className={statsGridClass}>
         {[0, 1, 2, 3].map((index) => (
-          <div key={index} className="h-[84px] animate-pulse rounded-xl border border-outline-variant bg-surface-low motion-reduce:animate-none" />
+          <div key={index} className="h-[84px] rounded-xl border border-outline-variant bg-surface-low" />
         ))}
       </div>
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-3 xl:gap-6">
@@ -175,26 +174,11 @@ function BoardSkeleton() {
           <div key={status} className="space-y-4">
             <div className="h-8 border-b border-outline-variant" />
             {[0, 1].map((index) => (
-              <div key={index} className="h-40 animate-pulse rounded-xl border-2 border-outline-variant bg-surface-low motion-reduce:animate-none" />
+              <div key={index} className="h-40 rounded-xl border-2 border-outline-variant bg-surface-low" />
             ))}
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-/** PWA-only splash: the brand fades in once, above a quiet indeterminate bar. */
-function PwaLoadingScreen() {
-  return (
-    <div className="flex min-h-[calc(100dvh-10rem)] flex-col items-center justify-center" aria-hidden="true">
-      <div className="flex flex-col items-center motion-safe:animate-[logo-in_500ms_ease-out]">
-        <Logo className="h-14 w-14" aria-hidden="true" />
-        <p className="mt-4 font-display text-base font-bold tracking-tight">InternSit</p>
-      </div>
-      <span className="mt-6 block h-1 w-28 overflow-hidden rounded-full bg-surface-container" aria-hidden="true">
-        <span className="block h-full w-1/3 rounded-full bg-primary motion-safe:animate-[loading-slide_1.2s_ease-in-out_infinite] motion-reduce:w-1/2" />
-      </span>
     </div>
   );
 }
@@ -213,8 +197,6 @@ export function KanbanBoard() {
   const [editing, setEditing] = useState<ApplicationItem | null>(null);
   const [filters, setFilters] = useState<ApplicationFilters>(EMPTY_FILTERS);
   const [notice, setNotice] = useState('');
-  // The branded splash belongs to the installed PWA only; the web gets a plain skeleton.
-  const [pwaLoading, setPwaLoading] = useState(false);
   // Drag and drop: the id travels with both state and dataTransfer (state is the
   // reliable source; dataTransfer covers cross-page drags and strict-mode replays).
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -247,15 +229,6 @@ export function KanbanBoard() {
     setNow(Date.now());
     const interval = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(interval);
-  }, []);
-
-  // Standalone display mode = the app runs as an installed PWA (Android; `standalone`
-  // covers iOS Safari home-screen apps).
-  useEffect(() => {
-    const isStandalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      'standalone' in window.navigator;
-    setPwaLoading(isStandalone);
   }, []);
 
   function openEdit(application: ApplicationItem) {
@@ -373,7 +346,7 @@ export function KanbanBoard() {
     return (
       <div role="status" aria-live="polite">
         <span className="sr-only">Loading applications…</span>
-        {pwaLoading ? <PwaLoadingScreen /> : <BoardSkeleton />}
+        <BoardSkeleton />
       </div>
     );
   }
