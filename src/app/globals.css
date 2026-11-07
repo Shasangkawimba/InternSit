@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* PWA-only splash: a quick fade/rise for the brand and a subtle sliding progress bar. */
+@keyframes loading-slide {
+  from { transform: translateX(-160%); }
+  to { transform: translateX(430%); }
+}
+
+@keyframes logo-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @layer base {
   :root {
     --color-background: #FFFFFF;

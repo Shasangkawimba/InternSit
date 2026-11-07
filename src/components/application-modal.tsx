@@ -179,12 +179,17 @@ export function ApplicationModal({ open, application, onClose, onSaved, onDelete
       onClick={(event) => {
         if (event.target === event.currentTarget && !busy) onClose();
       }}
-      className="m-auto max-h-none w-[calc(100%-1.5rem)] max-w-lg overflow-visible bg-transparent p-0 text-on-surface backdrop:bg-black/40"
+      className="fixed inset-0 h-full max-h-none w-full max-w-none bg-transparent p-0 text-on-surface backdrop:bg-black/40"
     >
+      {/* Full-viewport flex frame: the form is optically centered on every device.
+          Desktop gets a slight upward bias (the chrome above the viewport makes a
+          symmetric center read as low on screen); mobile stays truly symmetric.
+          `pointer-events-none` keeps backdrop click-to-close working around the form. */}
+      <div className="pointer-events-none flex h-full min-h-0 items-center justify-center px-3 sm:pb-16">
       <form
         noValidate
         onSubmit={handleSubmit(onSubmit)}
-        className={`flex max-h-[88dvh] w-full flex-col rounded-xl border border-outline-variant bg-surface-lowest shadow-2xl sm:max-h-[calc(100dvh-4rem)] ${mobileInputs}`}
+        className={`pointer-events-auto flex max-h-[80dvh] w-full max-w-lg flex-col rounded-xl border border-outline-variant bg-surface-lowest shadow-2xl sm:max-h-[calc(100dvh-4rem)] ${mobileInputs}`}
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-outline p-4 sm:p-6">
           <div>
@@ -292,6 +297,7 @@ export function ApplicationModal({ open, application, onClose, onSaved, onDelete
           </div>
         )}
       </form>
+      </div>
     </dialog>
   );
 }

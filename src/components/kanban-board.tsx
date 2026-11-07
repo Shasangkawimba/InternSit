@@ -19,13 +19,15 @@ import {
 } from '@/lib/applications';
 import { ApiError, listApplications, updateApplicationStatus } from '@/lib/applications-client';
 import { ApplicationModal } from '@/components/application-modal';
+import { Logo } from '@/components/logo';
 
-// Monochrome on purpose: wireframe gray→dark gray—primary tone only, no per-status colors.
+// Monochrome on purpose: primary tone only — except REJECTED, which gets red
+// so the archived column stands out as the one "closed" state.
 const STATUS_STYLE: Record<ApplicationStatus, { label: string; dot: string; text: string }> = {
   APPLIED: { label: 'APPLIED', dot: 'bg-primary', text: 'text-on-surface' },
   INTERVIEW: { label: 'INTERVIEWING', dot: 'bg-primary', text: 'text-on-surface' },
   OFFER: { label: 'OFFER', dot: 'bg-primary', text: 'text-on-surface' },
-  REJECTED: { label: 'REJECTED', dot: 'bg-outline', text: 'text-on-surface-variant' },
+  REJECTED: { label: 'REJECTED', dot: 'bg-danger', text: 'text-danger' },
 };
 
 const ACTIVE_STAGES = ['APPLIED', 'INTERVIEW', 'OFFER'] as const;
@@ -182,6 +184,21 @@ function BoardSkeleton() {
   );
 }
 
+/** PWA-only splash: the brand fades in once, above a quiet indeterminate bar. */
+function PwaLoadingScreen() {
+  return (
+    <div className="flex min-h-[calc(100dvh-10rem)] flex-col items-center justify-center" aria-hidden="true">
+      <div className="flex flex-col items-center motion-safe:animate-[logo-in_500ms_ease-out]">
+        <Logo className="h-14 w-14" aria-hidden="true" />
+        <p className="mt-4 font-display text-base font-bold tracking-tight">InternSit</p>
+      </div>
+      <span className="mt-6 block h-1 w-28 overflow-hidden rounded-full bg-surface-container" aria-hidden="true">
+        <span className="block h-full w-1/3 rounded-full bg-primary motion-safe:animate-[loading-slide_1.2s_ease-in-out_infinite] motion-reduce:w-1/2" />
+      </span>
+    </div>
+  );
+}
+
 type LoadState = 'loading' | 'ready' | 'error';
 
 export function KanbanBoard() {
@@ -196,6 +213,8 @@ export function KanbanBoard() {
   const [editing, setEditing] = useState<ApplicationItem | null>(null);
   const [filters, setFilters] = useState<ApplicationFilters>(EMPTY_FILTERS);
   const [notice, setNotice] = useState('');
+  // The branded splash belongs to the installed PWA only; the web gets a plain skeleton.
+  const [pwaLoading, setPwaLoading] = useState(false);
   // Drag and drop: the id travels with both state and dataTransfer (state is the
   // reliable source; dataTransfer covers cross-page drags and strict-mode replays).
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -228,6 +247,15 @@ export function KanbanBoard() {
     setNow(Date.now());
     const interval = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(interval);
+  }, []);
+
+  // Standalone display mode = the app runs as an installed PWA (Android; `standalone`
+  // covers iOS Safari home-screen apps).
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      'standalone' in window.navigator;
+    setPwaLoading(isStandalone);
   }, []);
 
   function openEdit(application: ApplicationItem) {
@@ -345,7 +373,7 @@ export function KanbanBoard() {
     return (
       <div role="status" aria-live="polite">
         <span className="sr-only">Loading applications…</span>
-        <BoardSkeleton />
+        {pwaLoading ? <PwaLoadingScreen /> : <BoardSkeleton />}
       </div>
     );
   }
