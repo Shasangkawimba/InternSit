@@ -184,16 +184,23 @@ export function ApplicationModal({ open, application, onClose, onSaved, onDelete
       <form
         noValidate
         onSubmit={handleSubmit(onSubmit)}
-        className={`flex max-h-[calc(100dvh-1.5rem)] w-full flex-col rounded-xl border border-outline-variant bg-surface-lowest shadow-2xl sm:max-h-[calc(100dvh-3rem)] ${mobileInputs}`}
+        className={`flex max-h-[88dvh] w-full flex-col rounded-xl border border-outline-variant bg-surface-lowest shadow-2xl sm:max-h-[calc(100dvh-4rem)] ${mobileInputs}`}
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-outline p-4 sm:p-6">
           <div>
             <h2 id={id('title-heading')} className="font-display text-lg font-semibold tracking-tight">{editing ? 'Edit application' : 'Add application'}</h2>
             <p className="mt-1 text-xs text-on-surface-variant">{editing ? 'Update details, move it to another stage, or delete it.' : 'Record a job or internship you have applied to.'}</p>
           </div>
-          <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-low hover:text-on-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <div className="flex shrink-0 items-start gap-1">
+            {editing && (
+              <button type="button" onClick={() => { setFormError(''); setConfirmingDelete(true); }} disabled={busy} aria-label="Delete application" className="rounded-lg p-2 text-danger transition-colors hover:bg-surface-low focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger disabled:opacity-50">
+                <Trash2 className="h-5 w-5" aria-hidden="true" />
+              </button>
+            )}
+            <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-low hover:text-on-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         <div className="modal-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-6">
@@ -274,12 +281,7 @@ export function ApplicationModal({ open, application, onClose, onSaved, onDelete
           </div>
         ) : (
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-outline p-4 sm:px-6">
-            {editing ? (
-              <button type="button" onClick={() => setConfirmingDelete(true)} disabled={busy} className={`${buttonClass} border border-danger text-danger hover:bg-surface-low`}>
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                Delete
-              </button>
-            ) : <span />}
+            <span />
             <div className="flex gap-3">
               <button type="button" onClick={onClose} disabled={busy} className={`${buttonClass} border border-outline-variant text-on-surface-variant hover:bg-surface-low hover:text-on-surface`}>Cancel</button>
               <button type="submit" disabled={busy} className={`${buttonClass} bg-primary text-on-primary shadow-sm hover:opacity-90`}>

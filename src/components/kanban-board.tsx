@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowRight, Briefcase, Clock, ExternalLink, MapPin, Plus, RefreshCw, Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, ArrowLeft, ArrowRight, Briefcase, Clock, ExternalLink, MapPin, Plus, RefreshCw, Search } from 'lucide-react';
 import {
   APPLICATION_TYPES,
   EMPTY_FILTERS,
@@ -11,6 +11,7 @@ import {
   hasActiveFilters,
   matchesFilters,
   nextStatus,
+  previousStatus,
   timeAgo,
   type ApplicationFilters,
   type ApplicationItem,
@@ -19,11 +20,12 @@ import {
 import { ApiError, listApplications, updateApplicationStatus } from '@/lib/applications-client';
 import { ApplicationModal } from '@/components/application-modal';
 
+// Monochrome on purpose: wireframe gray→dark gray—primary tone only, no per-status colors.
 const STATUS_STYLE: Record<ApplicationStatus, { label: string; dot: string; text: string }> = {
-  APPLIED: { label: 'APPLIED', dot: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400' },
-  INTERVIEW: { label: 'INTERVIEWING', dot: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
-  OFFER: { label: 'OFFER', dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
-  REJECTED: { label: 'REJECTED', dot: 'bg-rose-500', text: 'text-rose-600 dark:text-rose-400' },
+  APPLIED: { label: 'APPLIED', dot: 'bg-primary', text: 'text-on-surface' },
+  INTERVIEW: { label: 'INTERVIEWING', dot: 'bg-primary', text: 'text-on-surface' },
+  OFFER: { label: 'OFFER', dot: 'bg-primary', text: 'text-on-surface' },
+  REJECTED: { label: 'REJECTED', dot: 'bg-outline', text: 'text-on-surface-variant' },
 };
 
 const ACTIVE_STAGES = ['APPLIED', 'INTERVIEW', 'OFFER'] as const;
@@ -34,24 +36,35 @@ function redirectToLogin() {
   window.location.replace('/login');
 }
 
-function ApplicationCard({ application, now, pending, onAdvance, onEdit }: {
+function ApplicationCard({ application, now, pending, dragging, onDragStart, onDragEnd, onChangeStatus, onEdit }: {
   application: ApplicationItem;
   now: number | null;
   pending: boolean;
-  onAdvance: (application: ApplicationItem) => void;
+  dragging: boolean;
+  onDragStart: (application: ApplicationItem) => void;
+  onDragEnd: () => void;
+  onChangeStatus: (application: ApplicationItem, status: ApplicationStatus) => void;
   onEdit: (application: ApplicationItem) => void;
 }) {
   const style = STATUS_STYLE[application.status];
   const next = STATUS_STYLE[nextStatus(application.status)].label;
+  const previous = previousStatus(application.status);
 
   return (
     <article
       aria-labelledby={`application-${application.id}`}
+      draggable={!pending}
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', application.id);
+        onDragStart(application);
+      }}
+      onDragEnd={onDragEnd}
       // Mouse convenience only; keyboard and screen-reader users use the title button.
       onClick={(event) => {
         if (!(event.target as HTMLElement).closest('a, button')) onEdit(application);
       }}
-      className="min-w-0 cursor-pointer rounded-xl border-2 border-outline bg-surface-lowest p-4 transition-colors hover:border-primary"
+      className={`min-w-0 cursor-grab rounded-xl border-2 border-outline bg-surface-lowest p-4 transition-colors hover:border-primary active:cursor-grabbing ${dragging ? 'opacity-40' : ''} ${pending ? 'cursor-wait' : ''}`}
     >
       <h3 className="text-sm font-semibold">
         <button
@@ -101,9 +114,24 @@ function ApplicationCard({ application, now, pending, onAdvance, onEdit }: {
             </a>
           )}
         </div>
-        <button type="button" onClick={() => onAdvance(application)} disabled={pending} className={`${actionClass} disabled:cursor-wait disabled:opacity-50`} title={`Move to ${next}`} aria-label={`Move ${application.title} at ${application.company} to ${next}`}>
-          Next <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
+        <div className="flex items-center gap-1">
+          {previous && (
+            <button
+              type="button"
+              onClick={() => onChangeStatus(application, previous)}
+              disabled={pending}
+              className={`${actionClass} disabled:cursor-wait disabled:opacity-50`}
+              title={`Move back to ${STATUS_STYLE[previous].label}`}
+              aria-label={`Move ${application.title} at ${application.company} back to ${STATUS_STYLE[previous].label}`}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              {STATUS_STYLE[previous].label}
+            </button>
+          )}
+          <button type="button" onClick={() => onChangeStatus(application, nextStatus(application.status))} disabled={pending} className={`${actionClass} disabled:cursor-wait disabled:opacity-50`} title={`Move to ${next}`} aria-label={`Move ${application.title} at ${application.company} to ${next}`}>
+            Next <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
       </div>
       {application.notes && <p className="mt-3 line-clamp-2 break-words text-xs italic leading-relaxed text-on-surface-variant" title={application.notes}>{application.notes}</p>}
     </article>
@@ -168,6 +196,12 @@ export function KanbanBoard() {
   const [editing, setEditing] = useState<ApplicationItem | null>(null);
   const [filters, setFilters] = useState<ApplicationFilters>(EMPTY_FILTERS);
   const [notice, setNotice] = useState('');
+  // Drag and drop: the id travels with both state and dataTransfer (state is the
+  // reliable source; dataTransfer covers cross-page drags and strict-mode replays).
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<ApplicationStatus | null>(null);
+  const applicationsRef = useRef<ApplicationItem[]>([]);
+  applicationsRef.current = applications;
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoadState('loading');
@@ -233,10 +267,9 @@ export function KanbanBoard() {
     else setActionError(`${label} no longer exists and was removed from the board.`);
   }
 
-  async function advance(application: ApplicationItem) {
-    if (pendingIds.has(application.id)) return;
+  async function changeStatus(application: ApplicationItem, status: ApplicationStatus) {
+    if (pendingIds.has(application.id) || application.status === status) return;
     const previous = application.status;
-    const status = nextStatus(previous);
     const label = `${application.title} at ${application.company}`;
 
     setActionError('');
@@ -266,6 +299,16 @@ export function KanbanBoard() {
     }
   }
 
+  function handleDropStatus(status: ApplicationStatus, id: string | null) {
+    setDragOverStatus(null);
+    setDraggedId(null);
+    if (!id) return;
+    const application = applicationsRef.current.find((item) => item.id === id);
+    if (application && application.status !== status && !pendingIds.has(application.id)) {
+      void changeStatus(application, status);
+    }
+  }
+
   function updateFilters(patch: Partial<ApplicationFilters>) {
     setNotice('');
     setFilters((current) => ({ ...current, ...patch }));
@@ -279,6 +322,24 @@ export function KanbanBoard() {
   const visible = useMemo(() => filterApplications(applications, filters), [applications, filters]);
   const filtered = hasActiveFilters(filters);
   const rejected = visible.filter((application) => application.status === 'REJECTED');
+
+  const dragging = (application: ApplicationItem) => draggedId === application.id;
+  const showDropHighlight = (status: ApplicationStatus) => draggedId !== null && dragOverStatus === status;
+  const columnDropProps = (status: ApplicationStatus) => ({
+    onDragOver: (event: React.DragEvent) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      setDragOverStatus(status);
+    },
+    onDragLeave: (event: React.DragEvent) => {
+      if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+      setDragOverStatus((current) => (current === status ? null : current));
+    },
+    onDrop: (event: React.DragEvent) => {
+      event.preventDefault();
+      handleDropStatus(status, draggedId ?? event.dataTransfer.getData('text/plain'));
+    },
+  });
 
   if (loadState === 'loading') {
     return (
@@ -369,8 +430,14 @@ export function KanbanBoard() {
         {ACTIVE_STAGES.map((status) => {
           const items = visible.filter((application) => application.status === status);
           const style = STATUS_STYLE[status];
+          const highlighted = showDropHighlight(status);
           return (
-            <section key={status} aria-labelledby={`stage-${status}`} className="min-w-0 space-y-4">
+            <section
+              key={status}
+              aria-labelledby={`stage-${status}`}
+              {...columnDropProps(status)}
+              className={`min-w-0 space-y-4 rounded-xl transition-colors ${highlighted ? 'bg-surface-low outline-2 outline-dashed outline-outline' : ''}`}
+            >
               <div className="flex items-center justify-between gap-3 border-b border-outline-variant pb-3">
                 <h2 id={`stage-${status}`} className={`flex items-center gap-2 font-mono text-xs font-medium ${style.text}`}>
                   <span className={`h-2 w-2 rounded-full ${style.dot}`} aria-hidden="true" />
@@ -380,33 +447,61 @@ export function KanbanBoard() {
               </div>
               {items.length ? (
                 <div className="space-y-4">
-                  {items.map((application) => <ApplicationCard key={application.id} application={application} now={now} pending={pendingIds.has(application.id)} onAdvance={advance} onEdit={openEdit} />)}
+                  {items.map((application) => (
+                    <ApplicationCard
+                      key={application.id}
+                      application={application}
+                      now={now}
+                      pending={pendingIds.has(application.id)}
+                      dragging={dragging(application)}
+                      onDragStart={(application) => setDraggedId(application.id)}
+                      onDragEnd={() => setDraggedId(null)}
+                      onChangeStatus={(application, status) => void changeStatus(application, status)}
+                      onEdit={openEdit}
+                    />
+                  ))}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-outline-variant py-12 text-on-surface-variant">
                   <AlertCircle className="mb-2 h-8 w-8 opacity-30" aria-hidden="true" />
-                  <p className="text-xs">No applications in this stage</p>
+                  <p className="text-xs">{highlighted ? 'Drop here to move to this stage' : 'No applications in this stage'}</p>
                 </div>
               )}
             </section>
           );
         })}
       </div>
-      {rejected.length > 0 && (
-        <section aria-labelledby="stage-REJECTED" className="space-y-4 border-t border-outline-variant pt-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 id="stage-REJECTED" className="flex items-center gap-2 text-sm font-semibold text-rose-600 dark:text-rose-400">
-              <span className="h-2 w-2 rounded-full bg-rose-500" aria-hidden="true" />
-              Archived / Rejected
-            </h2>
-            <span aria-label={`${rejected.length} applications`} className="rounded-md border border-outline-variant bg-surface-low px-2 py-0.5 font-mono text-[11px] text-on-surface-variant">{rejected.length}</span>
-          </div>
-          <p className="text-xs text-on-surface-variant">Use Next to restore an application to Applied.</p>
+      <section
+        aria-labelledby="stage-REJECTED"
+        {...columnDropProps('REJECTED')}
+        className={`space-y-4 rounded-xl border-t border-outline-variant pt-6 transition-colors ${showDropHighlight('REJECTED') ? 'bg-surface-low outline-2 outline-dashed outline-outline' : ''}`}
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 id="stage-REJECTED" className={`flex items-center gap-2 text-sm font-semibold ${STATUS_STYLE.REJECTED.text}`}>
+            <span className={`h-2 w-2 rounded-full ${STATUS_STYLE.REJECTED.dot}`} aria-hidden="true" />
+            Archived / Rejected
+          </h2>
+          <span aria-label={`${rejected.length} applications`} className="rounded-md border border-outline-variant bg-surface-low px-2 py-0.5 font-mono text-[11px] text-on-surface-variant">{rejected.length}</span>
+        </div>
+        <p className="text-xs text-on-surface-variant">Drop a card here to archive it, or use Next on an archived card to restore it to Applied.</p>
+        {rejected.length > 0 && (
           <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3 lg:grid-cols-4">
-            {rejected.map((application) => <ApplicationCard key={application.id} application={application} now={now} pending={pendingIds.has(application.id)} onAdvance={advance} onEdit={openEdit} />)}
+            {rejected.map((application) => (
+              <ApplicationCard
+                key={application.id}
+                application={application}
+                now={now}
+                pending={pendingIds.has(application.id)}
+                dragging={dragging(application)}
+                onDragStart={(application) => setDraggedId(application.id)}
+                onDragEnd={() => setDraggedId(null)}
+                onChangeStatus={(application, status) => void changeStatus(application, status)}
+                onEdit={openEdit}
+              />
+            ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
     </div>
   );
 }

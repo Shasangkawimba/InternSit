@@ -643,8 +643,8 @@ mencegah flash of unstyled content (FOUC). Default: dark.
 10. [SELESAI] Modal Edit Application (form + hapus)
 11. [SELESAI] Statistik header (hitung dari data)
 12. [SELESAI] Filter/search (client-side atau query param)
-13. [BERIKUTNYA] PWA — manifest.json, ikon, next-pwa, offline.html
-14. Deploy ke Vercel — env DATABASE_URL + APP_PASSWORD + AUTH_SECRET, test install di HP
+13. [SELESAI] PWA — manifest.json, ikon, next-pwa, offline.html
+14. [SELESAI] Deploy ke Vercel — env DATABASE_URL + APP_PASSWORD + AUTH_SECRET, test install di HP
 ```
 
 ---

@@ -39,6 +39,17 @@ export function nextStatus(status: ApplicationStatus): ApplicationStatus {
   return NEXT_STATUS[status];
 }
 
+/** One step back along the flow; `undefined` for APPLIED (nothing earlier to return to). */
+const PREV_STATUS: Partial<Record<ApplicationStatus, ApplicationStatus>> = {
+  INTERVIEW: 'APPLIED',
+  OFFER: 'INTERVIEW',
+  REJECTED: 'OFFER',
+};
+
+export function previousStatus(status: ApplicationStatus): ApplicationStatus | undefined {
+  return PREV_STATUS[status];
+}
+
 export type ApplicationFilters = {
   query: string;
   platform: Platform | '';

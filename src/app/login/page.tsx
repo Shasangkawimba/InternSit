@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Logo } from '@/components/logo';
 
 function LoginForm() {
   const router = useRouter();
@@ -39,7 +40,10 @@ function LoginForm() {
       onSubmit={onSubmit}
       className="w-full max-w-sm space-y-4 rounded-xl border border-outline-variant bg-surface-lowest p-6 shadow-2xl"
     >
-      <h1 className="text-lg font-semibold">InternSit</h1>
+      <div className="flex items-center gap-3">
+        <Logo className="h-10 w-10" />
+        <h1 className="text-lg font-semibold">InternSit</h1>
+      </div>
       <div className="space-y-1.5">
         <label htmlFor="password" className="text-xs font-medium text-on-surface-variant">
           Password
